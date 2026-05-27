@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rachel — Flashcards</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Inter:wght@400;500&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0a0a;
+      color: #f0f0f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+    header { text-align: center; margin-bottom: 36px; }
+    header h1 { font-family: 'Sora', sans-serif; font-size: 1.8rem; font-weight: 700; margin-bottom: 6px; }
+    header p { color: #555; font-size: 0.85rem; }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn {
+      padding: 9px 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.07);
+      color: #ccc;
+      font-size: 0.88rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn:hover { background: rgba(255,255,255,0.13); color: #fff; }
+    .btn.primary { background: #fff; color: #000; border-color: #fff; font-weight: 600; }
+    .btn.primary:hover { background: #e0e0e0; }
+    .counter { color: #555; font-size: 0.88rem; min-width: 80px; text-align: center; }
+    .progress-wrap {
+      width: 100%;
+      max-width: 520px;
+      height: 4px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 4px;
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #fff;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    .card-stage { width: 100%; max-width: 520px; perspective: 1200px; margin-bottom: 24px; }
+    .card { display: none; cursor: pointer; }
+    .card.active { display: block; }
+    .card-inner {
+      width: 100%;
+      min-height: 280px;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 18px;
+    }
+    .card-inner.flipped { transform: rotateY(180deg); }
+    .card-front, .card-back {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 18px;
+      padding: 36px 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 16px;
+      min-height: 280px;
+    }
+    .card-front { background: #141414; border: 1px solid rgba(255,255,255,0.1); }
+    .card-back { background: #181825; border: 1px solid rgba(120,120,255,0.2); transform: rotateY(180deg); }
+    .card-num { color: #444; font-size: 0.75rem; letter-spacing: 0.08em; }
+    .card-text { font-size: 1.15rem; line-height: 1.6; color: #f0f0f0; font-family: 'Sora', sans-serif; }
+    .card-back .card-text { color: #c8c8ff; }
+    .card-hint { color: #333; font-size: 0.75rem; margin-top: 8px; }
+    .verdict {
+      display: none;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .verdict.visible { display: flex; }
+    .verdict-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 32px;
+      border-radius: 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      min-width: 160px;
+      justify-content: center;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    .verdict-btn:hover { transform: translateY(-2px); opacity: 0.9; }
+    .verdict-btn.unknown {
+      border: 2px solid rgba(248,113,113,0.5);
+      background: rgba(248,113,113,0.12);
+      color: #f87171;
+    }
+    .verdict-btn.known {
+      border: 2px solid rgba(74,222,128,0.5);
+      background: rgba(74,222,128,0.12);
+      color: #4ade80;
+    }
+    .score-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 4px;
+      margin-bottom: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .chip {
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .chip.known { background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+    .chip.unknown { background: rgba(248,113,113,0.1); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
+    .all-cards { width: 100%; max-width: 520px; display: none; flex-direction: column; gap: 12px; margin-top: 12px; }
+    .all-cards.visible { display: flex; }
+    .list-card { background: #111; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 18px 22px; }
+    .list-q { font-weight: 600; margin-bottom: 8px; font-size: 0.92rem; }
+    .list-a { color: #888; font-size: 0.88rem; line-height: 1.5; }
+    footer { margin-top: 48px; color: #2a2a2a; font-size: 0.75rem; text-align: center; }
+    @media (max-width: 560px) {
+      .card-text { font-size: 1rem; }
+      .card-front, .card-back { padding: 28px 22px; }
+      .verdict-btn { min-width: 130px; padding: 12px 20px; font-size: 0.92rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📚 rachel</h1>
+    <p>Flashcards · 86 cards · May 27, 2026</p>
+  </header>
+
+  <div class="controls">
+    <button class="btn" onclick="prev()">← Prev</button>
+    <span class="counter" id="counter">1 / 86</span>
+    <button class="btn" onclick="next()">Next →</button>
+    <button class="btn primary" onclick="flipCard()">Flip</button>
+    <button class="btn" onclick="toggleList()" id="listToggleBtn">☰ All Cards</button>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-fill" id="progressFill" style="width:1.2%"></div>
+  </div>
+
+  <div class="score-row">
+    <span class="chip known" id="knownChip">✅ Known: 0</span>
+    <span class="chip unknown" id="unknownChip">❌ To learn: 86</span>
+  </div>
+
+  <div class="card-stage">
+    
+    <div class="card" id="card-0">
+      <div class="card-inner" id="inner-0">
+        <div class="card-front">
+          <span class="card-num">1 / 86</span>
+          <p class="card-text">What ethnic group were the Arabs originally?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">1 / 86</span>
+          <p class="card-text">Semitic-speaking nomadic people.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-1">
+      <div class="card-inner" id="inner-1">
+        <div class="card-front">
+          <span class="card-num">2 / 86</span>
+          <p class="card-text">Where did Arabs originate?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">2 / 86</span>
+          <p class="card-text">Arabian Peninsula.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-2">
+      <div class="card-inner" id="inner-2">
+        <div class="card-front">
+          <span class="card-num">3 / 86</span>
+          <p class="card-text">How were Arab tribes traditionally governed?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">3 / 86</span>
+          <p class="card-text">Led by sheikhs chosen by a council of elders.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-3">
+      <div class="card-inner" id="inner-3">
+        <div class="card-front">
+          <span class="card-num">4 / 86</span>
+          <p class="card-text">What were the primary occupations of pre-Islamic Arabs?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">4 / 86</span>
+          <p class="card-text">Pastoral nomads, farmers, traders.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-4">
+      <div class="card-inner" id="inner-4">
+        <div class="card-front">
+          <span class="card-num">5 / 86</span>
+          <p class="card-text">What role did Arabs play in ancient commerce?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">5 / 86</span>
+          <p class="card-text">Major carriers of goods via caravan trade between Indian Ocean and Mediterranean.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-5">
+      <div class="card-inner" id="inner-5">
+        <div class="card-front">
+          <span class="card-num">6 / 86</span>
+          <p class="card-text">What is the meaning of "Allah"?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">6 / 86</span>
+          <p class="card-text">God.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-6">
+      <div class="card-inner" id="inner-6">
+        <div class="card-front">
+          <span class="card-num">7 / 86</span>
+          <p class="card-text">What religious practice did early Arabs follow before Islam?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">7 / 86</span>
+          <p class="card-text">Polytheism, though they recognized Allah as supreme god.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-7">
+      <div class="card-inner" id="inner-7">
+        <div class="card-front">
+          <span class="card-num">8 / 86</span>
+          <p class="card-text">What does Islam teach regarding the number of gods?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">8 / 86</span>
+          <p class="card-text">Strict monotheism — belief in one God (Allah).</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-8">
+      <div class="card-inner" id="inner-8">
+        <div class="card-front">
+          <span class="card-num">9 / 86</span>
+          <p class="card-text">Who does Islam identify as the final prophet of Allah?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">9 / 86</span>
+          <p class="card-text">Muhammad.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-9">
+      <div class="card-inner" id="inner-9">
+        <div class="card-front">
+          <span class="card-num">10 / 86</span>
+          <p class="card-text">What is the Black Stone?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">10 / 86</span>
+          <p class="card-text">A sacred stone housed in the Kaaba in Makkah.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-10">
+      <div class="card-inner" id="inner-10">
+        <div class="card-front">
+          <span class="card-num">11 / 86</span>
+          <p class="card-text">Where is the Black Stone located?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">11 / 86</span>
+          <p class="card-text">In the Kaaba in Makkah.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-11">
+      <div class="card-inner" id="inner-11">
+        <div class="card-front">
+          <span class="card-num">12 / 86</span>
+          <p class="card-text">What was the pre-Islamic significance of sacred stones to Arabs?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">12 / 86</span>
+          <p class="card-text">Worshipped as part of polytheistic practices.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-12">
+      <div class="card-inner" id="inner-12">
+        <div class="card-front">
+          <span class="card-num">13 / 86</span>
+          <p class="card-text">What did Muhammad declare the Kaaba to be?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">13 / 86</span>
+          <p class="card-text">A sacred shrine of Islam; the holiest site.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-13">
+      <div class="card-inner" id="inner-13">
+        <div class="card-front">
+          <span class="card-num">14 / 86</span>
+          <p class="card-text">Describe the Kaaba's shape.</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">14 / 86</span>
+          <p class="card-text">Cube-shaped.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-14">
+      <div class="card-inner" id="inner-14">
+        <div class="card-front">
+          <span class="card-num">15 / 86</span>
+          <p class="card-text">Where is the Kaaba located?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">15 / 86</span>
+          <p class="card-text">Makkah (Mecca).</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-15">
+      <div class="card-inner" id="inner-15">
+        <div class="card-front">
+          <span class="card-num">16 / 86</span>
+          <p class="card-text">What is circumambulation?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">16 / 86</span>
+          <p class="card-text">Walking around the Kaaba.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-16">
+      <div class="card-inner" id="inner-16">
+        <div class="card-front">
+          <span class="card-num">17 / 86</span>
+          <p class="card-text">When do Muslims face the Kaaba?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">17 / 86</span>
+          <p class="card-text">During prayer.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-17">
+      <div class="card-inner" id="inner-17">
+        <div class="card-front">
+          <span class="card-num">18 / 86</span>
+          <p class="card-text">What technological development allowed Arabs to expand into deserts?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">18 / 86</span>
+          <p class="card-text">Domestication of the camel.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-18">
+      <div class="card-inner" id="inner-18">
+        <div class="card-front">
+          <span class="card-num">19 / 86</span>
+          <p class="card-text">What advantage did camel domestication provide?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">19 / 86</span>
+          <p class="card-text">Enabled long caravan trade routes across Arabia and beyond.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-19">
+      <div class="card-inner" id="inner-19">
+        <div class="card-front">
+          <span class="card-num">20 / 86</span>
+          <p class="card-text">What are trade caravans?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">20 / 86</span>
+          <p class="card-text">Organized groups of merchants traveling together for safety.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-20">
+      <div class="card-inner" id="inner-20">
+        <div class="card-front">
+          <span class="card-num">21 / 86</span>
+          <p class="card-text">What role did Makkah play in caravan trade?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">21 / 86</span>
+          <p class="card-text">Grew into an important trade center along caravan routes.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-21">
+      <div class="card-inner" id="inner-21">
+        <div class="card-front">
+          <span class="card-num">22 / 86</span>
+          <p class="card-text">What does the term "Bedouin" mean?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">22 / 86</span>
+          <p class="card-text">Desert dweller.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-22">
+      <div class="card-inner" id="inner-22">
+        <div class="card-front">
+          <span class="card-num">23 / 86</span>
+          <p class="card-text">How did Bedouin lifestyle differ from settled Arabs?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">23 / 86</span>
+          <p class="card-text">Traveled seasonally to find water and food; religious practices differed.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-23">
+      <div class="card-inner" id="inner-23">
+        <div class="card-front">
+          <span class="card-num">24 / 86</span>
+          <p class="card-text">In what year was Muhammad born?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">24 / 86</span>
+          <p class="card-text">Around 570 CE.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-24">
+      <div class="card-inner" id="inner-24">
+        <div class="card-front">
+          <span class="card-num">25 / 86</span>
+          <p class="card-text">What was Muhammad's occupation before becoming a prophet?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">25 / 86</span>
+          <p class="card-text">Caravan manager.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-25">
+      <div class="card-inner" id="inner-25">
+        <div class="card-front">
+          <span class="card-num">26 / 86</span>
+          <p class="card-text">Who did Muhammad marry?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">26 / 86</span>
+          <p class="card-text">Khadija.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-26">
+      <div class="card-inner" id="inner-26">
+        <div class="card-front">
+          <span class="card-num">27 / 86</span>
+          <p class="card-text">At what age did Muhammad receive his first revelations?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">27 / 86</span>
+          <p class="card-text">Around age 40.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-27">
+      <div class="card-inner" id="inner-27">
+        <div class="card-front">
+          <span class="card-num">28 / 86</span>
+          <p class="card-text">Through whom did Muhammad receive divine revelations?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">28 / 86</span>
+          <p class="card-text">The angel Gabriel.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-28">
+      <div class="card-inner" id="inner-28">
+        <div class="card-front">
+          <span class="card-num">29 / 86</span>
+          <p class="card-text">What event is referred to as the Hijrah?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">29 / 86</span>
+          <p class="card-text">Muhammad's flight from Makkah to Madinah in 622 CE.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-29">
+      <div class="card-inner" id="inner-29">
+        <div class="card-front">
+          <span class="card-num">30 / 86</span>
+          <p class="card-text">In what year did Muhammad undertake the Hijrah?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">30 / 86</span>
+          <p class="card-text">622 CE.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-30">
+      <div class="card-inner" id="inner-30">
+        <div class="card-front">
+          <span class="card-num">31 / 86</span>
+          <p class="card-text">From which city did Muhammad undertake the Hijrah?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">31 / 86</span>
+          <p class="card-text">Makkah.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-31">
+      <div class="card-inner" id="inner-31">
+        <div class="card-front">
+          <span class="card-num">32 / 86</span>
+          <p class="card-text">To which city did Muhammad undertake the Hijrah?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">32 / 86</span>
+          <p class="card-text">Madinah.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-32">
+      <div class="card-inner" id="inner-32">
+        <div class="card-front">
+          <span class="card-num">33 / 86</span>
+          <p class="card-text">In what year did Muhammad return to Makkah?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">33 / 86</span>
+          <p class="card-text">630 CE.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-33">
+      <div class="card-inner" id="inner-33">
+        <div class="card-front">
+          <span class="card-num">34 / 86</span>
+          <p class="card-text">How many men accompanied Muhammad when he returned to Makkah?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">34 / 86</span>
+          <p class="card-text">10,000 men.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-34">
+      <div class="card-inner" id="inner-34">
+        <div class="card-front">
+          <span class="card-num">35 / 86</span>
+          <p class="card-text">What happened when Muhammad returned to Makkah in 630?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">35 / 86</span>
+          <p class="card-text">The city surrendered; he unified the Arabian Peninsula under Islam.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-35">
+      <div class="card-inner" id="inner-35">
+        <div class="card-front">
+          <span class="card-num">36 / 86</span>
+          <p class="card-text">In what year did Muhammad die?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">36 / 86</span>
+          <p class="card-text">632 CE.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-36">
+      <div class="card-inner" id="inner-36">
+        <div class="card-front">
+          <span class="card-num">37 / 86</span>
+          <p class="card-text">At what age was Muhammad orphaned?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">37 / 86</span>
+          <p class="card-text">Age 5.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-37">
+      <div class="card-inner" id="inner-37">
+        <div class="card-front">
+          <span class="card-num">38 / 86</span>
+          <p class="card-text">Where did Muhammad receive his first revelation?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">38 / 86</span>
+          <p class="card-text">Hills outside Makkah while meditating.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-38">
+      <div class="card-inner" id="inner-38">
+        <div class="card-front">
+          <span class="card-num">39 / 86</span>
+          <p class="card-text">In what year did the angel Gabriel begin transmitting messages to Muhammad?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">39 / 86</span>
+          <p class="card-text">Around 610 CE.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-39">
+      <div class="card-inner" id="inner-39">
+        <div class="card-front">
+          <span class="card-num">40 / 86</span>
+          <p class="card-text">What is the Quran?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">40 / 86</span>
+          <p class="card-text">The holy book of Islam containing 114 chapters.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-40">
+      <div class="card-inner" id="inner-40">
+        <div class="card-front">
+          <span class="card-num">41 / 86</span>
+          <p class="card-text">How many chapters does the Quran contain?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">41 / 86</span>
+          <p class="card-text">114 chapters (surahs).</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-41">
+      <div class="card-inner" id="inner-41">
+        <div class="card-front">
+          <span class="card-num">42 / 86</span>
+          <p class="card-text">What do Muslims believe the Quran preserves?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">42 / 86</span>
+          <p class="card-text">The final revelations of Allah given to Muhammad through Gabriel.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-42">
+      <div class="card-inner" id="inner-42">
+        <div class="card-front">
+          <span class="card-num">43 / 86</span>
+          <p class="card-text">What is the primary purpose of the Quran in Islam?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">43 / 86</span>
+          <p class="card-text">Serves as primary guide for Islamic ethics, law, and worship.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-43">
+      <div class="card-inner" id="inner-43">
+        <div class="card-front">
+          <span class="card-num">44 / 86</span>
+          <p class="card-text">What is the meaning of the word "Islam"?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">44 / 86</span>
+          <p class="card-text">Peace through submission to the will of Allah.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-44">
+      <div class="card-inner" id="inner-44">
+        <div class="card-front">
+          <span class="card-num">45 / 86</span>
+          <p class="card-text">What is the Hadith?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">45 / 86</span>
+          <p class="card-text">A collection of recorded sayings and actions of Muhammad.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-45">
+      <div class="card-inner" id="inner-45">
+        <div class="card-front">
+          <span class="card-num">46 / 86</span>
+          <p class="card-text">When was the Hadith compiled?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">46 / 86</span>
+          <p class="card-text">After Muhammad's death in 632 CE.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-46">
+      <div class="card-inner" id="inner-46">
+        <div class="card-front">
+          <span class="card-num">47 / 86</span>
+          <p class="card-text">What is the rank of the Hadith as a source of Islamic law?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">47 / 86</span>
+          <p class="card-text">Second only to the Quran.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-47">
+      <div class="card-inner" id="inner-47">
+        <div class="card-front">
+          <span class="card-num">48 / 86</span>
+          <p class="card-text">How did scholars use the Hadith?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">48 / 86</span>
+          <p class="card-text">To help develop the shari'ah (Islamic law).</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-48">
+      <div class="card-inner" id="inner-48">
+        <div class="card-front">
+          <span class="card-num">49 / 86</span>
+          <p class="card-text">What is the Shari'ah?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">49 / 86</span>
+          <p class="card-text">Islamic law developed by scholars after Muhammad's death.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-49">
+      <div class="card-inner" id="inner-49">
+        <div class="card-front">
+          <span class="card-num">50 / 86</span>
+          <p class="card-text">What aspects of Muslim life does Shari'ah govern?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">50 / 86</span>
+          <p class="card-text">Family, business, government, and moral conduct.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-50">
+      <div class="card-inner" id="inner-50">
+        <div class="card-front">
+          <span class="card-num">51 / 86</span>
+          <p class="card-text">Name three prohibitions found in Shari'ah.</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">51 / 86</span>
+          <p class="card-text">Gambling, eating pork, drinking alcohol.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-51">
+      <div class="card-inner" id="inner-51">
+        <div class="card-front">
+          <span class="card-num">52 / 86</span>
+          <p class="card-text">What virtue does Shari'ah mandate regarding truthfulness?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">52 / 86</span>
+          <p class="card-text">Practicing honesty.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-52">
+      <div class="card-inner" id="inner-52">
+        <div class="card-front">
+          <span class="card-num">53 / 86</span>
+          <p class="card-text">What virtue does Shari'ah mandate regarding fairness?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">53 / 86</span>
+          <p class="card-text">Practicing justice.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-53">
+      <div class="card-inner" id="inner-53">
+        <div class="card-front">
+          <span class="card-num">54 / 86</span>
+          <p class="card-text">How have many modern Muslim-majority countries modified Shari'ah?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">54 / 86</span>
+          <p class="card-text">Replaced it with Western-style legal codes; some retained for inheritance and religious endowments.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-54">
+      <div class="card-inner" id="inner-54">
+        <div class="card-front">
+          <span class="card-num">55 / 86</span>
+          <p class="card-text">What are the Five Pillars of Islam?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">55 / 86</span>
+          <p class="card-text">Shahada, Salat, Zakat, Sawm, Hajj.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-55">
+      <div class="card-inner" id="inner-55">
+        <div class="card-front">
+          <span class="card-num">56 / 86</span>
+          <p class="card-text">Define Shahada.</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">56 / 86</span>
+          <p class="card-text">Declaration that "There is no god but Allah, and Muhammad is His messenger."</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-56">
+      <div class="card-inner" id="inner-56">
+        <div class="card-front">
+          <span class="card-num">57 / 86</span>
+          <p class="card-text">What is Shahada's rank among the Five Pillars?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">57 / 86</span>
+          <p class="card-text">The first pillar (belief/faith).</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-57">
+      <div class="card-inner" id="inner-57">
+        <div class="card-front">
+          <span class="card-num">58 / 86</span>
+          <p class="card-text">Define Salat.</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">58 / 86</span>
+          <p class="card-text">Praying five times daily facing the Kaaba in Makkah.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-58">
+      <div class="card-inner" id="inner-58">
+        <div class="card-front">
+          <span class="card-num">59 / 86</span>
+          <p class="card-text">How often must Muslims perform Salat?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">59 / 86</span>
+          <p class="card-text">Five times daily.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-59">
+      <div class="card-inner" id="inner-59">
+        <div class="card-front">
+          <span class="card-num">60 / 86</span>
+          <p class="card-text">Toward what direction must Muslims face during Salat?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">60 / 86</span>
+          <p class="card-text">The Kaaba in Makkah.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-60">
+      <div class="card-inner" id="inner-60">
+        <div class="card-front">
+          <span class="card-num">61 / 86</span>
+          <p class="card-text">Define Zakat.</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">61 / 86</span>
+          <p class="card-text">Giving a portion of wealth to the poor.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-61">
+      <div class="card-inner" id="inner-61">
+        <div class="card-front">
+          <span class="card-num">62 / 86</span>
+          <p class="card-text">What is Zakat's rank among the Five Pillars?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">62 / 86</span>
+          <p class="card-text">The third pillar (charity).</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-62">
+      <div class="card-inner" id="inner-62">
+        <div class="card-front">
+          <span class="card-num">63 / 86</span>
+          <p class="card-text">Define Sawm.</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">63 / 86</span>
+          <p class="card-text">Fasting during the holy month of Ramadan.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-63">
+      <div class="card-inner" id="inner-63">
+        <div class="card-front">
+          <span class="card-num">64 / 86</span>
+          <p class="card-text">During which month do Muslims observe Sawm?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">64 / 86</span>
+          <p class="card-text">Ramadan.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-64">
+      <div class="card-inner" id="inner-64">
+        <div class="card-front">
+          <span class="card-num">65 / 86</span>
+          <p class="card-text">Define Hajj.</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">65 / 86</span>
+          <p class="card-text">Pilgrimage to Makkah that Muslims must undertake at least once in their lifetime.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-65">
+      <div class="card-inner" id="inner-65">
+        <div class="card-front">
+          <span class="card-num">66 / 86</span>
+          <p class="card-text">What was the Arab Agricultural Revolution?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">66 / 86</span>
+          <p class="card-text">Transformation in farming techniques accompanying the spread of Islam.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-66">
+      <div class="card-inner" id="inner-66">
+        <div class="card-front">
+          <span class="card-num">67 / 86</span>
+          <p class="card-text">During what time period did the Arab Agricultural Revolution occur?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">67 / 86</span>
+          <p class="card-text">Roughly 700–1100 CE.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-67">
+      <div class="card-inner" id="inner-67">
+        <div class="card-front">
+          <span class="card-num">68 / 86</span>
+          <p class="card-text">Name three new crops introduced by Muslims during the Arab Agricultural Revolution.</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">68 / 86</span>
+          <p class="card-text">Cotton, rice, citrus fruits, sugar cane.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-68">
+      <div class="card-inner" id="inner-68">
+        <div class="card-front">
+          <span class="card-num">69 / 86</span>
+          <p class="card-text">What regions did Muslims draw agricultural knowledge from?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">69 / 86</span>
+          <p class="card-text">Persia, India, and other conquered regions.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-69">
+      <div class="card-inner" id="inner-69">
+        <div class="card-front">
+          <span class="card-num">70 / 86</span>
+          <p class="card-text">What two major agricultural innovations did Muslims introduce?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">70 / 86</span>
+          <p class="card-text">New crops and irrigation systems.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-70">
+      <div class="card-inner" id="inner-70">
+        <div class="card-front">
+          <span class="card-num">71 / 86</span>
+          <p class="card-text">What were the two main effects of the Arab Agricultural Revolution?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">71 / 86</span>
+          <p class="card-text">Increased food production and population growth.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-71">
+      <div class="card-inner" id="inner-71">
+        <div class="card-front">
+          <span class="card-num">72 / 86</span>
+          <p class="card-text">What are bazaars?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">72 / 86</span>
+          <p class="card-text">Traditional Islamic marketplaces in Muslim cities.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-72">
+      <div class="card-inner" id="inner-72">
+        <div class="card-front">
+          <span class="card-num">73 / 86</span>
+          <p class="card-text">What primary function did bazaars serve?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">73 / 86</span>
+          <p class="card-text">Commercial centers for buying and selling goods.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-73">
+      <div class="card-inner" id="inner-73">
+        <div class="card-front">
+          <span class="card-num">74 / 86</span>
+          <p class="card-text">Name three Islamic cities where bazaars were central to economic life.</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">74 / 86</span>
+          <p class="card-text">Baghdad, Damascus, Córdoba.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-74">
+      <div class="card-inner" id="inner-74">
+        <div class="card-front">
+          <span class="card-num">75 / 86</span>
+          <p class="card-text">What geographic routes did bazaars help facilitate trade along?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">75 / 86</span>
+          <p class="card-text">Silk Road and Indian Ocean routes.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-75">
+      <div class="card-inner" id="inner-75">
+        <div class="card-front">
+          <span class="card-num">76 / 86</span>
+          <p class="card-text">What three religions are classified as Abrahamic religions?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">76 / 86</span>
+          <p class="card-text">Judaism, Christianity, Islam.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-76">
+      <div class="card-inner" id="inner-76">
+        <div class="card-front">
+          <span class="card-num">77 / 86</span>
+          <p class="card-text">What common figure do Judaism, Christianity, and Islam trace their roots to?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">77 / 86</span>
+          <p class="card-text">Prophet Abraham.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-77">
+      <div class="card-inner" id="inner-77">
+        <div class="card-front">
+          <span class="card-num">78 / 86</span>
+          <p class="card-text">What is a key characteristic shared by Judaism, Christianity, and Islam?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">78 / 86</span>
+          <p class="card-text">All three are monotheistic.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-78">
+      <div class="card-inner" id="inner-78">
+        <div class="card-front">
+          <span class="card-num">79 / 86</span>
+          <p class="card-text">How does Islam view Jesus?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">79 / 86</span>
+          <p class="card-text">As a prophet, but NOT as the Son of God.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-79">
+      <div class="card-inner" id="inner-79">
+        <div class="card-front">
+          <span class="card-num">80 / 86</span>
+          <p class="card-text">What is the Islamic belief regarding Muhammad's revelation?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">80 / 86</span>
+          <p class="card-text">Muhammad received God's final revelation after earlier messages were rejected.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-80">
+      <div class="card-inner" id="inner-80">
+        <div class="card-front">
+          <span class="card-num">81 / 86</span>
+          <p class="card-text">What earlier holy scriptures does the Quran acknowledge?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">81 / 86</span>
+          <p class="card-text">Torah (Jewish) and Bible (Christian).</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-81">
+      <div class="card-inner" id="inner-81">
+        <div class="card-front">
+          <span class="card-num">82 / 86</span>
+          <p class="card-text">Name three values shared by Judaism, Christianity, and Islam.</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">82 / 86</span>
+          <p class="card-text">Faith, prayer, charity, ethical living.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-82">
+      <div class="card-inner" id="inner-82">
+        <div class="card-front">
+          <span class="card-num">83 / 86</span>
+          <p class="card-text">What is Abraham's role in Islamic tradition?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">83 / 86</span>
+          <p class="card-text">Believed to have built the Kaaba in Makkah.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-83">
+      <div class="card-inner" id="inner-83">
+        <div class="card-front">
+          <span class="card-num">84 / 86</span>
+          <p class="card-text">Who did Abraham build the Kaaba with?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">84 / 86</span>
+          <p class="card-text">His son Ishmael.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-84">
+      <div class="card-inner" id="inner-84">
+        <div class="card-front">
+          <span class="card-num">85 / 86</span>
+          <p class="card-text">What is the Kaaba according to Islamic tradition?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">85 / 86</span>
+          <p class="card-text">House of worship for God built by Abraham and Ishmael.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="card-85">
+      <div class="card-inner" id="inner-85">
+        <div class="card-front">
+          <span class="card-num">86 / 86</span>
+          <p class="card-text">Why is Abraham central to understanding connections between Judaism, Christianity, and Islam?</p>
+          <span class="card-hint">click to flip</span>
+        </div>
+        <div class="card-back">
+          <span class="card-num">86 / 86</span>
+          <p class="card-text">All three religions claim spiritual descent from Abraham.</p>
+          <span class="card-hint">click to flip back</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <button class="verdict-btn unknown" onclick="markUnknown()">😕 Still Learning</button>
+    <button class="verdict-btn known" onclick="markKnown()">💪 Know It!</button>
+  </div>
+
+  <div class="all-cards" id="allCards">
+    
+    <div class="list-card">
+      <div class="list-q">Q1. What ethnic group were the Arabs originally?</div>
+      <div class="list-a">A: Semitic-speaking nomadic people.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q2. Where did Arabs originate?</div>
+      <div class="list-a">A: Arabian Peninsula.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q3. How were Arab tribes traditionally governed?</div>
+      <div class="list-a">A: Led by sheikhs chosen by a council of elders.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q4. What were the primary occupations of pre-Islamic Arabs?</div>
+      <div class="list-a">A: Pastoral nomads, farmers, traders.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q5. What role did Arabs play in ancient commerce?</div>
+      <div class="list-a">A: Major carriers of goods via caravan trade between Indian Ocean and Mediterranean.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q6. What is the meaning of "Allah"?</div>
+      <div class="list-a">A: God.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q7. What religious practice did early Arabs follow before Islam?</div>
+      <div class="list-a">A: Polytheism, though they recognized Allah as supreme god.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q8. What does Islam teach regarding the number of gods?</div>
+      <div class="list-a">A: Strict monotheism — belief in one God (Allah).</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q9. Who does Islam identify as the final prophet of Allah?</div>
+      <div class="list-a">A: Muhammad.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q10. What is the Black Stone?</div>
+      <div class="list-a">A: A sacred stone housed in the Kaaba in Makkah.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q11. Where is the Black Stone located?</div>
+      <div class="list-a">A: In the Kaaba in Makkah.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q12. What was the pre-Islamic significance of sacred stones to Arabs?</div>
+      <div class="list-a">A: Worshipped as part of polytheistic practices.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q13. What did Muhammad declare the Kaaba to be?</div>
+      <div class="list-a">A: A sacred shrine of Islam; the holiest site.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q14. Describe the Kaaba's shape.</div>
+      <div class="list-a">A: Cube-shaped.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q15. Where is the Kaaba located?</div>
+      <div class="list-a">A: Makkah (Mecca).</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q16. What is circumambulation?</div>
+      <div class="list-a">A: Walking around the Kaaba.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q17. When do Muslims face the Kaaba?</div>
+      <div class="list-a">A: During prayer.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q18. What technological development allowed Arabs to expand into deserts?</div>
+      <div class="list-a">A: Domestication of the camel.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q19. What advantage did camel domestication provide?</div>
+      <div class="list-a">A: Enabled long caravan trade routes across Arabia and beyond.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q20. What are trade caravans?</div>
+      <div class="list-a">A: Organized groups of merchants traveling together for safety.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q21. What role did Makkah play in caravan trade?</div>
+      <div class="list-a">A: Grew into an important trade center along caravan routes.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q22. What does the term "Bedouin" mean?</div>
+      <div class="list-a">A: Desert dweller.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q23. How did Bedouin lifestyle differ from settled Arabs?</div>
+      <div class="list-a">A: Traveled seasonally to find water and food; religious practices differed.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q24. In what year was Muhammad born?</div>
+      <div class="list-a">A: Around 570 CE.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q25. What was Muhammad's occupation before becoming a prophet?</div>
+      <div class="list-a">A: Caravan manager.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q26. Who did Muhammad marry?</div>
+      <div class="list-a">A: Khadija.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q27. At what age did Muhammad receive his first revelations?</div>
+      <div class="list-a">A: Around age 40.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q28. Through whom did Muhammad receive divine revelations?</div>
+      <div class="list-a">A: The angel Gabriel.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q29. What event is referred to as the Hijrah?</div>
+      <div class="list-a">A: Muhammad's flight from Makkah to Madinah in 622 CE.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q30. In what year did Muhammad undertake the Hijrah?</div>
+      <div class="list-a">A: 622 CE.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q31. From which city did Muhammad undertake the Hijrah?</div>
+      <div class="list-a">A: Makkah.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q32. To which city did Muhammad undertake the Hijrah?</div>
+      <div class="list-a">A: Madinah.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q33. In what year did Muhammad return to Makkah?</div>
+      <div class="list-a">A: 630 CE.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q34. How many men accompanied Muhammad when he returned to Makkah?</div>
+      <div class="list-a">A: 10,000 men.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q35. What happened when Muhammad returned to Makkah in 630?</div>
+      <div class="list-a">A: The city surrendered; he unified the Arabian Peninsula under Islam.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q36. In what year did Muhammad die?</div>
+      <div class="list-a">A: 632 CE.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q37. At what age was Muhammad orphaned?</div>
+      <div class="list-a">A: Age 5.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q38. Where did Muhammad receive his first revelation?</div>
+      <div class="list-a">A: Hills outside Makkah while meditating.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q39. In what year did the angel Gabriel begin transmitting messages to Muhammad?</div>
+      <div class="list-a">A: Around 610 CE.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q40. What is the Quran?</div>
+      <div class="list-a">A: The holy book of Islam containing 114 chapters.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q41. How many chapters does the Quran contain?</div>
+      <div class="list-a">A: 114 chapters (surahs).</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q42. What do Muslims believe the Quran preserves?</div>
+      <div class="list-a">A: The final revelations of Allah given to Muhammad through Gabriel.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q43. What is the primary purpose of the Quran in Islam?</div>
+      <div class="list-a">A: Serves as primary guide for Islamic ethics, law, and worship.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q44. What is the meaning of the word "Islam"?</div>
+      <div class="list-a">A: Peace through submission to the will of Allah.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q45. What is the Hadith?</div>
+      <div class="list-a">A: A collection of recorded sayings and actions of Muhammad.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q46. When was the Hadith compiled?</div>
+      <div class="list-a">A: After Muhammad's death in 632 CE.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q47. What is the rank of the Hadith as a source of Islamic law?</div>
+      <div class="list-a">A: Second only to the Quran.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q48. How did scholars use the Hadith?</div>
+      <div class="list-a">A: To help develop the shari'ah (Islamic law).</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q49. What is the Shari'ah?</div>
+      <div class="list-a">A: Islamic law developed by scholars after Muhammad's death.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q50. What aspects of Muslim life does Shari'ah govern?</div>
+      <div class="list-a">A: Family, business, government, and moral conduct.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q51. Name three prohibitions found in Shari'ah.</div>
+      <div class="list-a">A: Gambling, eating pork, drinking alcohol.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q52. What virtue does Shari'ah mandate regarding truthfulness?</div>
+      <div class="list-a">A: Practicing honesty.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q53. What virtue does Shari'ah mandate regarding fairness?</div>
+      <div class="list-a">A: Practicing justice.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q54. How have many modern Muslim-majority countries modified Shari'ah?</div>
+      <div class="list-a">A: Replaced it with Western-style legal codes; some retained for inheritance and religious endowments.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q55. What are the Five Pillars of Islam?</div>
+      <div class="list-a">A: Shahada, Salat, Zakat, Sawm, Hajj.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q56. Define Shahada.</div>
+      <div class="list-a">A: Declaration that "There is no god but Allah, and Muhammad is His messenger."</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q57. What is Shahada's rank among the Five Pillars?</div>
+      <div class="list-a">A: The first pillar (belief/faith).</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q58. Define Salat.</div>
+      <div class="list-a">A: Praying five times daily facing the Kaaba in Makkah.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q59. How often must Muslims perform Salat?</div>
+      <div class="list-a">A: Five times daily.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q60. Toward what direction must Muslims face during Salat?</div>
+      <div class="list-a">A: The Kaaba in Makkah.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q61. Define Zakat.</div>
+      <div class="list-a">A: Giving a portion of wealth to the poor.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q62. What is Zakat's rank among the Five Pillars?</div>
+      <div class="list-a">A: The third pillar (charity).</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q63. Define Sawm.</div>
+      <div class="list-a">A: Fasting during the holy month of Ramadan.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q64. During which month do Muslims observe Sawm?</div>
+      <div class="list-a">A: Ramadan.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q65. Define Hajj.</div>
+      <div class="list-a">A: Pilgrimage to Makkah that Muslims must undertake at least once in their lifetime.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q66. What was the Arab Agricultural Revolution?</div>
+      <div class="list-a">A: Transformation in farming techniques accompanying the spread of Islam.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q67. During what time period did the Arab Agricultural Revolution occur?</div>
+      <div class="list-a">A: Roughly 700–1100 CE.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q68. Name three new crops introduced by Muslims during the Arab Agricultural Revolution.</div>
+      <div class="list-a">A: Cotton, rice, citrus fruits, sugar cane.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q69. What regions did Muslims draw agricultural knowledge from?</div>
+      <div class="list-a">A: Persia, India, and other conquered regions.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q70. What two major agricultural innovations did Muslims introduce?</div>
+      <div class="list-a">A: New crops and irrigation systems.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q71. What were the two main effects of the Arab Agricultural Revolution?</div>
+      <div class="list-a">A: Increased food production and population growth.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q72. What are bazaars?</div>
+      <div class="list-a">A: Traditional Islamic marketplaces in Muslim cities.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q73. What primary function did bazaars serve?</div>
+      <div class="list-a">A: Commercial centers for buying and selling goods.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q74. Name three Islamic cities where bazaars were central to economic life.</div>
+      <div class="list-a">A: Baghdad, Damascus, Córdoba.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q75. What geographic routes did bazaars help facilitate trade along?</div>
+      <div class="list-a">A: Silk Road and Indian Ocean routes.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q76. What three religions are classified as Abrahamic religions?</div>
+      <div class="list-a">A: Judaism, Christianity, Islam.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q77. What common figure do Judaism, Christianity, and Islam trace their roots to?</div>
+      <div class="list-a">A: Prophet Abraham.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q78. What is a key characteristic shared by Judaism, Christianity, and Islam?</div>
+      <div class="list-a">A: All three are monotheistic.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q79. How does Islam view Jesus?</div>
+      <div class="list-a">A: As a prophet, but NOT as the Son of God.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q80. What is the Islamic belief regarding Muhammad's revelation?</div>
+      <div class="list-a">A: Muhammad received God's final revelation after earlier messages were rejected.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q81. What earlier holy scriptures does the Quran acknowledge?</div>
+      <div class="list-a">A: Torah (Jewish) and Bible (Christian).</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q82. Name three values shared by Judaism, Christianity, and Islam.</div>
+      <div class="list-a">A: Faith, prayer, charity, ethical living.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q83. What is Abraham's role in Islamic tradition?</div>
+      <div class="list-a">A: Believed to have built the Kaaba in Makkah.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q84. Who did Abraham build the Kaaba with?</div>
+      <div class="list-a">A: His son Ishmael.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q85. What is the Kaaba according to Islamic tradition?</div>
+      <div class="list-a">A: House of worship for God built by Abraham and Ishmael.</div>
+    </div>
+    <div class="list-card">
+      <div class="list-q">Q86. Why is Abraham central to understanding connections between Judaism, Christianity, and Islam?</div>
+      <div class="list-a">A: All three religions claim spiritual descent from Abraham.</div>
+    </div>
+  </div>
+
+  <footer>Generated by StudyFlow AI</footer>
+
+  <script>
+    let current = 0;
+    const total = 86;
+    const cards = document.querySelectorAll('.card');
+    let known = 0;
+
+    function show(idx) {
+      cards.forEach(c => c.classList.remove('active'));
+      const prevInner = document.getElementById('inner-' + current);
+      if (prevInner) prevInner.classList.remove('flipped');
+      document.getElementById('verdict').classList.remove('visible');
+      current = ((idx % total) + total) % total;
+      cards[current].classList.add('active');
+      document.getElementById('counter').textContent = (current + 1) + ' / ' + total;
+      document.getElementById('progressFill').style.width = ((current + 1) / total * 100).toFixed(1) + '%';
+    }
+
+    function flipCard() {
+      const inner = document.getElementById('inner-' + current);
+      if (!inner) return;
+      const flipped = inner.classList.toggle('flipped');
+      document.getElementById('verdict').classList.toggle('visible', flipped);
+    }
+
+    function markKnown() {
+      known = Math.min(known + 1, total);
+      document.getElementById('knownChip').textContent = '✅ Known: ' + known;
+      document.getElementById('unknownChip').textContent = '❌ To learn: ' + (total - known);
+      next();
+    }
+
+    function markUnknown() {
+      next();
+    }
+
+    function next() { show(current + 1); }
+    function prev() { show(current - 1); }
+
+    function toggleList() {
+      const list = document.getElementById('allCards');
+      const btn  = document.getElementById('listToggleBtn');
+      const visible = list.classList.toggle('visible');
+      btn.textContent = visible ? '✕ Hide List' : '☰ All Cards';
+    }
+
+    cards.forEach(c => c.addEventListener('click', flipCard));
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight') next();
+      else if (e.key === 'ArrowLeft') prev();
+      else if (e.key === ' ') { e.preventDefault(); flipCard(); }
+      else if (e.key === 'k' || e.key === 'K') { const inner = document.getElementById('inner-' + current); if (inner?.classList.contains('flipped')) markKnown(); }
+      else if (e.key === 'u' || e.key === 'U') { const inner = document.getElementById('inner-' + current); if (inner?.classList.contains('flipped')) markUnknown(); }
+    });
+
+    show(0);
+  </script>
+</body>
+</html>
