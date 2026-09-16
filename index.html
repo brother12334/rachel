@@ -59,8 +59,12 @@
       transition: width 0.3s ease;
     }
     .card-stage { width: 100%; max-width: 520px; perspective: 1200px; margin-bottom: 24px; }
-    .card { display: none; cursor: pointer; }
-    .card.active { display: block; }
+    /* No-JS fallback: show the first card and the full list. JS adds
+       .js-ready to <body>, after which only the .active card shows. */
+    .card { display: block; cursor: pointer; }
+    body.js-ready .card { display: none; }
+    body.js-ready .card.active { display: block; }
+    .card + .card { display: none; }
     .card-inner {
       width: 100%;
       min-height: 280px;
@@ -140,8 +144,9 @@
     }
     .chip.known { background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
     .chip.unknown { background: rgba(248,113,113,0.1); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
-    .all-cards { width: 100%; max-width: 520px; display: none; flex-direction: column; gap: 12px; margin-top: 12px; }
-    .all-cards.visible { display: flex; }
+    .all-cards { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+    body.js-ready .all-cards { display: none; }
+    body.js-ready .all-cards.visible { display: flex; }
     .list-card { background: #111; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 18px 22px; }
     .list-q { font-weight: 600; margin-bottom: 8px; font-size: 0.92rem; }
     .list-a { color: #888; font-size: 0.88rem; line-height: 1.5; }
@@ -1847,6 +1852,7 @@
       else if (e.key === 'u' || e.key === 'U') { const inner = document.getElementById('inner-' + current); if (inner?.classList.contains('flipped')) markUnknown(); }
     });
 
+    document.body.classList.add('js-ready');
     show(0);
   </script>
 </body>
